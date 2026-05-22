@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "QPaw",
+  "version": "0.1.0",
+  "identifier": "com.qpaw.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "pet",
+        "title": "QPaw",
+        "url": "/",
+        "width": 360,
+        "height": 430,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "resizable": true,
+        "minWidth": 80,
+        "minHeight": 100,
+        "skipTaskbar": true,
+        "shadow": false
+      },
+      {
+        "label": "settings",
+        "title": "QPaw Settings",
+        "url": "/?view=settings",
+        "width": 980,
+        "height": 760,
+        "visible": false,
+        "decorations": true,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPDATA/**/*", "$APPLOCALDATA/**/*", "$RESOURCE/**/*"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.png", "icons/icon.ico"]
+  }
+}
