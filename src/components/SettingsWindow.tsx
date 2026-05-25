@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChatPanel } from "./ChatPanel";
 import { ControlButton } from "./ControlButton";
 import { MemoryPanel } from "./MemoryPanel";
-import { api, isTauriRuntime, pickModelJson } from "../lib/tauri";
+import { api, isTauriRuntime, pickAvatarAsset } from "../lib/tauri";
 import { fallbackSettings } from "../lib/fallback";
 import type { AppSettings, ReminderDefinition, ReminderRuntimeStatus } from "../lib/types";
 
@@ -82,7 +82,7 @@ export function SettingsWindow() {
     });
 
   const importAvatar = async () => {
-    const path = await pickModelJson();
+    const path = await pickAvatarAsset();
     if (!path) return;
     const manifest = await api.importAvatar(path);
     await save({
@@ -90,11 +90,16 @@ export function SettingsWindow() {
       avatar: {
         ...settings.avatar,
         current_avatar_id: manifest.id,
+        kind: manifest.kind,
         model_json_path: manifest.model_json_path,
+        image_path: manifest.image_path,
       },
     });
     setStatus(`已导入 ${manifest.name}`);
   };
+  const avatarPath =
+    settings.avatar.kind === "image" ? settings.avatar.image_path : settings.avatar.model_json_path;
+  const avatarLabel = settings.avatar.kind === "image" ? "静态图片" : "Live2D 模型";
 
   const exportMemory = async () => {
     const memories = await api.listMemories();
@@ -240,13 +245,13 @@ export function SettingsWindow() {
 
         <section className="settings-card">
           <header>
-            <h2>Live2D 形象</h2>
-            <p>导入 `.model3.json` 素材包；运行库需自行放入 `public/vendor`。</p>
+            <h2>桌面形象</h2>
+            <p>支持 `.model3.json` Live2D 素材包，也支持 png/jpg/webp 静态图片。</p>
           </header>
           <div className="avatar-import">
-            <span>{settings.avatar.model_json_path ?? "尚未导入模型"}</span>
+            <span>{avatarPath ? `${avatarLabel}：${avatarPath}` : "尚未导入形象"}</span>
             <ControlButton icon={<FolderOpen size={16} />} variant="primary" onClick={() => void importAvatar()}>
-              导入模型
+              导入形象
             </ControlButton>
           </div>
           <label>

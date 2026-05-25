@@ -69,18 +69,42 @@ fn default_reminder_items() -> Vec<ReminderDefinition> {
     ]
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AvatarKind {
+    Live2d,
+    Image,
+}
+
+fn default_avatar_kind() -> AvatarKind {
+    AvatarKind::Live2d
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AvatarSettings {
+    #[serde(default)]
     pub current_avatar_id: Option<String>,
+    #[serde(default = "default_avatar_kind")]
+    pub kind: AvatarKind,
+    #[serde(default)]
     pub model_json_path: Option<String>,
+    #[serde(default)]
+    pub image_path: Option<String>,
+    #[serde(default = "default_avatar_scale")]
     pub scale: f64,
+}
+
+fn default_avatar_scale() -> f64 {
+    1.0
 }
 
 impl Default for AvatarSettings {
     fn default() -> Self {
         Self {
             current_avatar_id: None,
+            kind: default_avatar_kind(),
             model_json_path: None,
+            image_path: None,
             scale: 1.0,
         }
     }
@@ -175,7 +199,10 @@ impl Default for AppSettings {
 pub struct AvatarManifest {
     pub id: String,
     pub name: String,
-    pub model_json_path: String,
+    pub kind: AvatarKind,
+    pub path: String,
+    pub model_json_path: Option<String>,
+    pub image_path: Option<String>,
     pub imported_at: DateTime<Utc>,
 }
 

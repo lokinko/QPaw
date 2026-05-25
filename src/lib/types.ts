@@ -25,9 +25,13 @@ export interface ReminderDefinition {
 
 export interface AvatarSettings {
   current_avatar_id: string | null;
+  kind: AvatarKind;
   model_json_path: string | null;
+  image_path: string | null;
   scale: number;
 }
+
+export type AvatarKind = "live2d" | "image";
 
 export interface WindowSettings {
   pet_x: number | null;
@@ -59,7 +63,10 @@ export interface AppSettings {
 export interface AvatarManifest {
   id: string;
   name: string;
-  model_json_path: string;
+  kind: AvatarKind;
+  path: string;
+  model_json_path: string | null;
+  image_path: string | null;
   imported_at: string;
 }
 

@@ -1,4 +1,5 @@
 mod avatar;
+mod chat;
 mod commands;
 mod debug;
 mod error;

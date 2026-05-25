@@ -47,7 +47,9 @@ export const fallbackSettings: AppSettings = {
   },
   avatar: {
     current_avatar_id: null,
+    kind: "live2d",
     model_json_path: null,
+    image_path: null,
     scale: 1,
   },
   window: {
@@ -92,15 +94,21 @@ export async function invokeFallback<T>(command: string, args?: Record<string, u
       return undefined as T;
     case "import_avatar": {
       const path = String(args?.path ?? "");
+      const kind = isImagePath(path) ? "image" : "live2d";
       const manifest: AvatarManifest = {
         id: crypto.randomUUID(),
-        name: path.split(/[\\/]/).pop()?.replace(".model3.json", "") || "Imported avatar",
-        model_json_path: path,
+        name: avatarName(path),
+        kind,
+        path,
+        model_json_path: kind === "live2d" ? path : null,
+        image_path: kind === "image" ? path : null,
         imported_at: now(),
       };
       settings.avatar = {
         current_avatar_id: manifest.id,
+        kind: manifest.kind,
         model_json_path: manifest.model_json_path,
+        image_path: manifest.image_path,
         scale: settings.avatar.scale,
       };
       return manifest as T;
@@ -241,6 +249,15 @@ export async function invokeFallback<T>(command: string, args?: Record<string, u
     default:
       throw new Error(`No fallback implemented for ${command}`);
   }
+}
+
+function isImagePath(path: string) {
+  return /\.(png|jpe?g|webp)$/i.test(path);
+}
+
+function avatarName(path: string) {
+  const filename = path.split(/[\\/]/).pop() || "Imported avatar";
+  return filename.replace(/\.model3\.json$/i, "").replace(/\.(png|jpe?g|webp)$/i, "");
 }
 
 function extractName(message: string) {

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Live2DAvatar } from "./Live2DAvatar";
 import { ReminderBubble } from "./ReminderBubble";
 import { ResizeHandles } from "./ResizeHandles";
+import { StaticAvatar } from "./StaticAvatar";
 import { debugError, debugLog, formatError } from "../lib/debug";
 import {
   api,
@@ -93,6 +94,8 @@ export function PetWindow() {
       setReply(`发送失败：${formatError(error)}`);
     }
   };
+  const avatar = settings?.avatar;
+  const avatarKind = avatar?.kind ?? (avatar?.image_path ? "image" : "live2d");
 
   return (
     <main className="pet-window" data-tauri-drag-region>
@@ -101,13 +104,14 @@ export function PetWindow() {
 
         {reminder ? <ReminderBubble reminder={reminder} onClose={() => setReminder(null)} /> : null}
 
-        <Live2DAvatar
-          modelPath={settings?.avatar.model_json_path ?? null}
-          scale={settings?.avatar.scale ?? 1}
-        />
+        {avatarKind === "image" ? (
+          <StaticAvatar imagePath={avatar?.image_path ?? null} scale={avatar?.scale ?? 1} />
+        ) : (
+          <Live2DAvatar modelPath={avatar?.model_json_path ?? null} scale={avatar?.scale ?? 1} />
+        )}
       </div>
-      <section className="pet-chat-dock">
-        <p>{reply}</p>
+      <section className="pet-chat-dock" data-tauri-drag-region>
+        <p data-tauri-drag-region>{reply}</p>
         <div className="pet-chat-dock__input">
           <input
             value={chatInput}

@@ -6,10 +6,10 @@ use uuid::Uuid;
 use crate::debug;
 use crate::error::QPawResult;
 use crate::models::{
-    AppSettings, AvatarManifest, ChatMessage, ChatRole, InteractionEventKind, LayeredMemoryItem,
-    MemoryConsolidationReport, MemoryDocument, MemoryLayer, MemoryLayerFilter, MemoryQueryRequest,
-    MemoryQueryResponse, MemoryStats, ReminderEvent, ReminderFeedbackPayload, ReminderKind,
-    ReminderPayload, ReminderRuntimeStatus, SendChatResponse, WorkingMemoryItem,
+    AppSettings, AvatarKind, AvatarManifest, ChatMessage, InteractionEventKind,
+    LayeredMemoryItem, MemoryConsolidationReport, MemoryDocument, MemoryLayer, MemoryLayerFilter,
+    MemoryQueryRequest, MemoryQueryResponse, MemoryStats, ReminderEvent, ReminderFeedbackPayload,
+    ReminderKind, ReminderPayload, ReminderRuntimeStatus, SendChatResponse, WorkingMemoryItem,
     PET_WINDOW_MAX_HEIGHT, PET_WINDOW_MAX_WIDTH, PET_WINDOW_MIN_HEIGHT, PET_WINDOW_MIN_WIDTH,
 };
 use crate::AppState;
@@ -60,12 +60,22 @@ pub async fn import_avatar(path: String, state: State<'_, AppState>) -> QPawResu
         "command:import_avatar",
         format!("importing avatar path_len={}", path.len()),
     );
-    let manifest = state.avatars.import_model(path.into())?;
+    let manifest = state.avatars.import_avatar(path.into())?;
     state.store.save_avatar(&manifest).await?;
 
     let mut settings = state.store.get_settings().await?;
     settings.avatar.current_avatar_id = Some(manifest.id.clone());
-    settings.avatar.model_json_path = Some(manifest.model_json_path.clone());
+    settings.avatar.kind = manifest.kind.clone();
+    match &manifest.kind {
+        AvatarKind::Live2d => {
+            settings.avatar.model_json_path = manifest.model_json_path.clone();
+            settings.avatar.image_path = None;
+        }
+        AvatarKind::Image => {
+            settings.avatar.image_path = manifest.image_path.clone();
+            settings.avatar.model_json_path = None;
+        }
+    }
     let _ = state.store.save_settings(&settings).await?;
 
     Ok(manifest)
@@ -76,210 +86,7 @@ pub async fn send_chat_message(
     message: String,
     state: State<'_, AppState>,
 ) -> QPawResult<SendChatResponse> {
-    let clean = message.trim().to_string();
-    let trace_id = Uuid::new_v4().to_string();
-    debug::log(
-        "command:send_chat_message",
-        format!(
-            "trace_id={trace_id} start message_len={}",
-            clean.chars().count()
-        ),
-    );
-    let user = ChatMessage {
-        role: ChatRole::User,
-        content: clean.clone(),
-        created_at: Utc::now(),
-    };
-    if let Err(error) = state.store.append_chat(&user).await {
-        debug::err(
-            "command:send_chat_message",
-            format!("trace_id={trace_id} failed to persist user chat message: {error}"),
-        );
-    } else {
-        debug::log(
-            "command:send_chat_message",
-            format!("trace_id={trace_id} user chat persisted"),
-        );
-    }
-    let user_event = match state
-        .memory
-        .record_event(
-            InteractionEventKind::ChatMessage,
-            "user",
-            clean.clone(),
-            json!({ "role": "user", "content": clean.clone() }),
-            vec!["chat".to_string()],
-        )
-        .await
-    {
-        Ok(event) => {
-            debug::log(
-                "command:send_chat_message",
-                format!("trace_id={trace_id} user interaction event persisted"),
-            );
-            Some(event)
-        }
-        Err(error) => {
-            debug::err(
-                "command:send_chat_message",
-                format!("trace_id={trace_id} failed to persist user interaction event: {error}"),
-            );
-            None
-        }
-    };
-
-    let settings = state.store.get_settings().await.unwrap_or_default();
-    if settings.memory.working_memory_enabled {
-        if let Some(user_event) = user_event.as_ref() {
-            match state
-                .memory
-                .update_working_memory_from_user_event(
-                    user_event,
-                    settings.memory.working_memory_retention_hours,
-                )
-                .await
-            {
-                Ok(items) => debug::log(
-                    "command:send_chat_message",
-                    format!(
-                        "trace_id={trace_id} working_memory_updated count={}",
-                        items.len()
-                    ),
-                ),
-                Err(error) => debug::err(
-                    "command:send_chat_message",
-                    format!("trace_id={trace_id} working_memory_update_failed: {error}"),
-                ),
-            }
-        }
-    }
-    let mut memories = state.store.list_memories().await.unwrap_or_default();
-    debug::log(
-        "command:send_chat_message",
-        format!(
-            "trace_id={trace_id} settings_loaded llm_configured={} legacy_memories={}",
-            !settings.llm.api_key.trim().is_empty() && !settings.llm.model.trim().is_empty(),
-            memories.len()
-        ),
-    );
-    let layered_context = match state.memory.context_for_chat(&clean).await {
-        Ok(context) => {
-            debug::log(
-                "command:send_chat_message",
-                format!(
-                    "trace_id={trace_id} layered_context_loaded context_len={}",
-                    context.len()
-                ),
-            );
-            context
-        }
-        Err(error) => {
-            debug::err(
-                "command:send_chat_message",
-                format!("trace_id={trace_id} layered_context_failed: {error}"),
-            );
-            String::new()
-        }
-    };
-    let system = format!(
-        "You are QPaw, a calm low-interruption desktop pet. Keep replies concise. \
-         Privacy mode is minimal: never claim access to window titles, app names, or keystrokes.\n\
-         Layered local memory context:\n{}",
-        layered_context
-    );
-    let assistant_content = match state
-        .llm
-        .reply_with_context(&settings, &clean, &system)
-        .await
-    {
-        Ok(reply) => {
-            debug::log(
-                "command:send_chat_message",
-                format!(
-                    "trace_id={trace_id} llm_reply_ok reply_len={}",
-                    reply.chars().count()
-                ),
-            );
-            reply
-        }
-        Err(error) => {
-            debug::err(
-                "command:send_chat_message",
-                format!("trace_id={trace_id} llm_reply_failed: {error}"),
-            );
-            format!("我暂时连不上 LLM，但已经在本地记下了。错误：{error}")
-        }
-    };
-    let assistant = ChatMessage {
-        role: ChatRole::Assistant,
-        content: assistant_content,
-        created_at: Utc::now(),
-    };
-    if let Err(error) = state.store.append_chat(&assistant).await {
-        debug::err(
-            "command:send_chat_message",
-            format!("trace_id={trace_id} failed to persist assistant chat message: {error}"),
-        );
-    } else {
-        debug::log(
-            "command:send_chat_message",
-            format!("trace_id={trace_id} assistant chat persisted"),
-        );
-    }
-    if let Err(error) = state
-        .memory
-        .record_event(
-            InteractionEventKind::ChatMessage,
-            "assistant",
-            assistant.content.clone(),
-            json!({ "role": "assistant", "content": assistant.content.clone() }),
-            vec!["chat".to_string()],
-        )
-        .await
-    {
-        debug::err(
-            "command:send_chat_message",
-            format!("trace_id={trace_id} failed to persist assistant interaction event: {error}"),
-        );
-    } else {
-        debug::log(
-            "command:send_chat_message",
-            format!("trace_id={trace_id} assistant interaction event persisted"),
-        );
-    }
-
-    if should_store_memory(&clean) {
-        let memory = MemoryDocument {
-            body: clean.clone(),
-            source: "chat".to_string(),
-            created_at: Utc::now(),
-        };
-        if let Err(error) = state.store.append_memory(&memory).await {
-            debug::err(
-                "command:send_chat_message",
-                format!("trace_id={trace_id} failed to persist legacy memory: {error}"),
-            );
-        } else {
-            debug::log(
-                "command:send_chat_message",
-                format!("trace_id={trace_id} legacy memory persisted"),
-            );
-        }
-        memories.push(memory);
-    }
-
-    debug::log(
-        "command:send_chat_message",
-        format!(
-            "trace_id={trace_id} done returned_memories={}",
-            memories.len()
-        ),
-    );
-    Ok(SendChatResponse {
-        user,
-        assistant,
-        memories,
-    })
+    crate::chat::send_chat_message(message, state.inner()).await
 }
 
 #[tauri::command]
@@ -506,12 +313,4 @@ pub async fn set_reminder_feedback(
         )
         .await?;
     Ok(())
-}
-
-fn should_store_memory(message: &str) -> bool {
-    let lowered = message.to_lowercase();
-    message.contains("记住")
-        || message.contains("记得")
-        || lowered.contains("remember")
-        || lowered.contains("note that")
 }

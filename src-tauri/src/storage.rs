@@ -102,9 +102,10 @@ impl DocumentStore {
         debug::log(
             "storage:save_avatar",
             format!(
-                "avatar_id={} path_len={}",
+                "avatar_id={} path_len={} kind={:?}",
                 manifest.id,
-                manifest.model_json_path.len()
+                manifest.path.len(),
+                manifest.kind
             ),
         );
         let _: Option<AvatarManifestRecord> = self
@@ -787,7 +788,10 @@ struct SchemaMigrationRecord {
 struct AvatarManifestRecord {
     uid: String,
     name: String,
-    model_json_path: String,
+    kind: crate::models::AvatarKind,
+    path: String,
+    model_json_path: Option<String>,
+    image_path: Option<String>,
     imported_at: DateTime<Utc>,
 }
 
@@ -796,7 +800,10 @@ impl From<&AvatarManifest> for AvatarManifestRecord {
         Self {
             uid: item.id.clone(),
             name: item.name.clone(),
+            kind: item.kind.clone(),
+            path: item.path.clone(),
             model_json_path: item.model_json_path.clone(),
+            image_path: item.image_path.clone(),
             imported_at: item.imported_at,
         }
     }

@@ -112,15 +112,19 @@ export const api = {
     call<void>("set_reminder_feedback", { payload }),
 };
 
-export async function pickModelJson(): Promise<string | null> {
+export async function pickAvatarAsset(): Promise<string | null> {
   if (!isTauri()) {
-    return window.prompt("Path to .model3.json file") || null;
+    return window.prompt("Path to .model3.json, .png, .jpg, .jpeg, or .webp file") || null;
   }
 
   const selected = await open({
     multiple: false,
     directory: false,
-    filters: [{ name: "Live2D Model", extensions: ["json"] }],
+    filters: [
+      { name: "Avatar Asset", extensions: ["json", "png", "jpg", "jpeg", "webp"] },
+      { name: "Live2D Model", extensions: ["json"] },
+      { name: "Static Image", extensions: ["png", "jpg", "jpeg", "webp"] },
+    ],
   });
 
   return typeof selected === "string" ? selected : null;

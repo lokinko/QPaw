@@ -69,7 +69,9 @@ export function Live2DAvatar({ modelPath, scale }: Live2DAvatarProps) {
           autoDensity: true,
           resolution: Math.min(window.devicePixelRatio || 1, 2),
         });
-        hostRef.current.appendChild(app.view as HTMLCanvasElement);
+        const canvas = app.view as HTMLCanvasElement;
+        canvas.setAttribute("data-tauri-drag-region", "true");
+        hostRef.current.appendChild(canvas);
 
         const model = await Live2DModel.from(assetUrl);
         if (cancelled) {

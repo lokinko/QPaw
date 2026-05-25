@@ -64,6 +64,7 @@ button {
   height: 100%;
   min-height: 0;
   padding: 20px 20px 10px;
+  overflow: hidden;
   container-type: size;
 }
 
@@ -215,8 +216,21 @@ button {
   position: relative;
   display: grid;
   place-items: center;
-  width: min(320px, calc(100vw - 28px));
-  min-height: min(350px, calc(100vh - 28px));
+  width: min(320px, 100%);
+  height: min(350px, 100%);
+  min-height: 0;
+}
+
+.static-avatar-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  justify-self: stretch;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 .placeholder-pet__halo {
@@ -315,8 +329,26 @@ button {
 }
 
 .live2d-host {
-  width: min(320px, calc(100vw - 28px));
-  height: min(360px, calc(100vh - 28px));
+  width: min(320px, 100%);
+  height: min(360px, 100%);
+}
+
+.static-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform-origin: center bottom;
+  filter: drop-shadow(0 24px 42px rgba(19, 42, 47, 0.18));
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.live2d-host canvas {
+  pointer-events: none;
 }
 
 .reminder-bubble {
