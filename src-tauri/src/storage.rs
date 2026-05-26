@@ -4,17 +4,19 @@ use chrono::{Duration as ChronoDuration, NaiveDate, Utc};
 use surrealdb::engine::local::SurrealKv;
 use surrealdb::Surreal;
 
+mod conversation;
 mod records;
+mod reminder_events;
+mod settings;
 
 use records::*;
 
 use crate::debug;
 use crate::error::QPawResult;
 use crate::models::{
-    AppSettings, AvatarManifest, ChatMessage, ConsolidationStatus, HabitEvent, InteractionEvent,
-    LayeredMemoryItem, MemoryConsolidationJob, MemoryDocument, MemoryL0, MemoryL1Concept,
-    MemoryL1Relation, MemoryL2Event, MemoryL3Reflection, MemoryLayer, MemoryLayerFilter,
-    MemoryStats, MemoryStatus, ReminderEvent, ReminderFeedbackPayload, WorkingMemoryItem,
+    ConsolidationStatus, InteractionEvent, LayeredMemoryItem, MemoryConsolidationJob, MemoryL0,
+    MemoryL1Concept, MemoryL1Relation, MemoryL2Event, MemoryL3Reflection, MemoryLayer,
+    MemoryLayerFilter, MemoryStats, MemoryStatus, WorkingMemoryItem,
 };
 
 pub struct DocumentStore {
@@ -68,122 +70,6 @@ impl DocumentStore {
             .content(SchemaMigrationRecord {
                 applied_at: Utc::now(),
             })
-            .await?;
-        Ok(())
-    }
-
-    pub async fn get_settings(&self) -> QPawResult<AppSettings> {
-        let settings: Option<AppSettings> = self.db.select(("app_settings", "default")).await?;
-        debug::log(
-            "storage:get_settings",
-            format!("found_existing={}", settings.is_some()),
-        );
-        Ok(settings.unwrap_or_default())
-    }
-
-    pub async fn save_settings(&self, settings: &AppSettings) -> QPawResult<AppSettings> {
-        debug::log(
-            "storage:save_settings",
-            format!(
-                "llm_configured={} memory_enabled={} reminders_paused={}",
-                !settings.llm.api_key.trim().is_empty() && !settings.llm.model.trim().is_empty(),
-                settings.memory.enabled,
-                settings.reminders.paused
-            ),
-        );
-        let mut response = self
-            .db
-            .query("UPSERT app_settings:default CONTENT $settings;")
-            .bind(("settings", settings.clone()))
-            .await?;
-        let saved: Option<AppSettings> = response.take(0)?;
-        Ok(saved.unwrap_or_else(|| settings.clone()))
-    }
-
-    pub async fn save_avatar(&self, manifest: &AvatarManifest) -> QPawResult<()> {
-        debug::log(
-            "storage:save_avatar",
-            format!(
-                "avatar_id={} path_len={} kind={:?}",
-                manifest.id,
-                manifest.path.len(),
-                manifest.kind
-            ),
-        );
-        let _: Option<AvatarManifestRecord> = self
-            .db
-            .create("avatar")
-            .content(AvatarManifestRecord::from(manifest))
-            .await?;
-        Ok(())
-    }
-
-    pub async fn append_chat(&self, message: &ChatMessage) -> QPawResult<()> {
-        debug::log(
-            "storage:append_chat",
-            format!(
-                "role={:?} content_len={}",
-                message.role,
-                message.content.chars().count()
-            ),
-        );
-        let _: Option<ChatMessage> = self
-            .db
-            .create("conversation")
-            .content(message.clone())
-            .await?;
-        Ok(())
-    }
-
-    pub async fn list_chat_history(&self) -> QPawResult<Vec<ChatMessage>> {
-        let mut messages: Vec<ChatMessage> = self.db.select("conversation").await?;
-        messages.sort_by(|a, b| a.created_at.cmp(&b.created_at));
-        debug::log(
-            "storage:list_chat_history",
-            format!("count={}", messages.len()),
-        );
-        Ok(messages)
-    }
-
-    pub async fn append_memory(&self, memory: &MemoryDocument) -> QPawResult<()> {
-        debug::log(
-            "storage:append_memory",
-            format!(
-                "source={} body_len={}",
-                memory.source,
-                memory.body.chars().count()
-            ),
-        );
-        let _: Option<MemoryDocument> = self.db.create("memory").content(memory.clone()).await?;
-        Ok(())
-    }
-
-    pub async fn list_memories(&self) -> QPawResult<Vec<MemoryDocument>> {
-        let memories: Vec<MemoryDocument> = self.db.select("memory").await?;
-        debug::log("storage:list_memories", format!("count={}", memories.len()));
-        Ok(memories)
-    }
-
-    pub async fn clear_memory(&self) -> QPawResult<()> {
-        debug::log(
-            "storage:clear_memory",
-            "deleting conversation and memory tables",
-        );
-        self.db
-            .query(
-                "DELETE conversation;
-                 DELETE memory;
-                 DELETE habit_event;
-                 DELETE reminder_event;
-                 DELETE interaction_event;
-                 DELETE working_memory;
-                 DELETE memory_l0;
-                 DELETE memory_l1_concept;
-                 DELETE memory_l1_relation;
-                 DELETE memory_l2_event;
-                 DELETE memory_l3_reflection;
-                 DELETE memory_consolidation_job;",
-            )
             .await?;
         Ok(())
     }
@@ -730,55 +616,6 @@ impl DocumentStore {
         })
     }
 
-    pub async fn append_habit_event(&self, active: bool, idle_seconds: u64) -> QPawResult<()> {
-        debug::log(
-            "storage:append_habit_event",
-            format!("active={active} idle_seconds={idle_seconds}"),
-        );
-        let event = HabitEvent {
-            active,
-            idle_seconds,
-            created_at: Utc::now(),
-        };
-        let _: Option<HabitEvent> = self.db.create("habit_event").content(event).await?;
-        Ok(())
-    }
-
-    pub async fn append_reminder_event(&self, event: &ReminderEvent) -> QPawResult<()> {
-        debug::log(
-            "storage:append_reminder_event",
-            format!(
-                "reminder_id={} kind={:?} idle_seconds={}",
-                event.reminder_id, event.kind, event.idle_seconds
-            ),
-        );
-        let _: Option<ReminderEvent> = self
-            .db
-            .create("reminder_event")
-            .content(event.clone())
-            .await?;
-        Ok(())
-    }
-
-    pub async fn set_reminder_feedback(&self, payload: &ReminderFeedbackPayload) -> QPawResult<()> {
-        debug::log(
-            "storage:set_reminder_feedback",
-            format!(
-                "reminder_id={} kind={:?} feedback={:?}",
-                payload.reminder_id, payload.kind, payload.feedback
-            ),
-        );
-        self.db
-            .query(
-                "UPDATE reminder_event
-                 SET feedback = $feedback
-                 WHERE reminder_id = $reminder_id;",
-            )
-            .bind(("feedback", payload.feedback.clone()))
-            .bind(("reminder_id", payload.reminder_id.clone()))
-            .await?;
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -788,7 +625,8 @@ mod tests {
 
     use super::*;
     use crate::models::{
-        ChatRole, InteractionEventKind, MemoryL0Category, WorkingMemoryItem, WorkingMemoryKind,
+        ChatMessage, ChatRole, InteractionEventKind, MemoryL0Category, WorkingMemoryItem,
+        WorkingMemoryKind,
     };
 
     fn test_db_path(name: &str) -> PathBuf {
