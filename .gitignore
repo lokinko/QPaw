@@ -8,3 +8,5 @@ src-tauri/target/
 .env
 .env.*
 !.env.example
+.superpowers/
+.codex-vite.pid

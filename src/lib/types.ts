@@ -1,5 +1,8 @@
 export type ReminderKind = string;
 
+export const DEFAULT_AVATAR_IMAGE_PATH = "/concepts/star-lantern-cat-concept.png";
+export const DEFAULT_BUILT_IN_AVATAR_ID = "star_lantern_cat";
+
 export type ReminderFeedback = "done" | "snoozed" | "dismissed";
 
 export interface LlmConfig {
@@ -31,7 +34,7 @@ export interface AvatarSettings {
   scale: number;
 }
 
-export type AvatarKind = "live2d" | "image";
+export type AvatarKind = "live2d" | "image" | "built_in";
 
 export interface WindowSettings {
   pet_x: number | null;

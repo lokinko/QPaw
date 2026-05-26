@@ -1,6 +1,7 @@
 import { Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Live2DAvatar } from "./Live2DAvatar";
+import { PixiNightCatAvatar } from "./PixiNightCatAvatar";
 import { ReminderBubble } from "./ReminderBubble";
 import { ResizeHandles } from "./ResizeHandles";
 import { StaticAvatar } from "./StaticAvatar";
@@ -12,7 +13,7 @@ import {
   onReminderDue,
   watchCurrentWindowSize,
 } from "../lib/tauri";
-import type { AppSettings, ReminderPayload } from "../lib/types";
+import { DEFAULT_AVATAR_IMAGE_PATH, type AppSettings, type ReminderPayload } from "../lib/types";
 
 export function PetWindow() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -95,7 +96,11 @@ export function PetWindow() {
     }
   };
   const avatar = settings?.avatar;
-  const avatarKind = avatar?.kind ?? (avatar?.image_path ? "image" : "live2d");
+  const avatarKind = avatar?.kind ?? "built_in";
+  const imagePath =
+    avatarKind === "image"
+      ? avatar?.image_path ?? DEFAULT_AVATAR_IMAGE_PATH
+      : DEFAULT_AVATAR_IMAGE_PATH;
 
   return (
     <main className="pet-window" data-tauri-drag-region>
@@ -104,8 +109,10 @@ export function PetWindow() {
 
         {reminder ? <ReminderBubble reminder={reminder} onClose={() => setReminder(null)} /> : null}
 
-        {avatarKind === "image" ? (
-          <StaticAvatar imagePath={avatar?.image_path ?? null} scale={avatar?.scale ?? 1} />
+        {avatarKind === "built_in" ? (
+          <PixiNightCatAvatar scale={avatar?.scale ?? 1} />
+        ) : avatarKind === "image" ? (
+          <StaticAvatar imagePath={imagePath} scale={avatar?.scale ?? 1} />
         ) : (
           <Live2DAvatar modelPath={avatar?.model_json_path ?? null} scale={avatar?.scale ?? 1} />
         )}

@@ -212,7 +212,8 @@ button {
 }
 
 .placeholder-pet,
-.live2d-host-wrap {
+.live2d-host-wrap,
+.pixi-night-cat-wrap {
   position: relative;
   display: grid;
   place-items: center;
@@ -333,6 +334,43 @@ button {
   height: min(360px, 100%);
 }
 
+.pixi-night-cat {
+  position: relative;
+  z-index: 1;
+  width: min(340px, 100%);
+  height: min(360px, 100%);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.pixi-night-cat-wrap {
+  width: min(340px, 100%);
+  height: min(360px, 100%);
+}
+
+.pixi-night-cat-wrap.is-pixi-ready .pixi-night-cat {
+  opacity: 1;
+}
+
+.pixi-night-cat__fallback {
+  position: absolute;
+  z-index: 0;
+  width: min(340px, 100%);
+  height: min(360px, 100%);
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.pixi-night-cat-wrap.is-pixi-ready .pixi-night-cat__fallback {
+  opacity: 0;
+}
+
+.pixi-night-cat-wrap.is-pixi-failed .pixi-night-cat__fallback {
+  opacity: 1;
+}
+
 .static-avatar {
   display: block;
   width: 100%;
@@ -347,7 +385,8 @@ button {
   -webkit-user-drag: none;
 }
 
-.live2d-host canvas {
+.live2d-host canvas,
+.pixi-night-cat canvas {
   pointer-events: none;
 }
 

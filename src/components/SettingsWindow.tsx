@@ -5,7 +5,12 @@ import { ControlButton } from "./ControlButton";
 import { MemoryPanel } from "./MemoryPanel";
 import { api, isTauriRuntime, pickAvatarAsset } from "../lib/tauri";
 import { fallbackSettings } from "../lib/fallback";
-import type { AppSettings, ReminderDefinition, ReminderRuntimeStatus } from "../lib/types";
+import {
+  DEFAULT_BUILT_IN_AVATAR_ID,
+  type AppSettings,
+  type ReminderDefinition,
+  type ReminderRuntimeStatus,
+} from "../lib/types";
 
 export function SettingsWindow() {
   const [settings, setSettings] = useState<AppSettings>(fallbackSettings);
@@ -97,9 +102,29 @@ export function SettingsWindow() {
     });
     setStatus(`已导入 ${manifest.name}`);
   };
+  const useBuiltInAvatar = () =>
+    save({
+      ...settings,
+      avatar: {
+        ...settings.avatar,
+        current_avatar_id: DEFAULT_BUILT_IN_AVATAR_ID,
+        kind: "built_in",
+        model_json_path: null,
+        image_path: null,
+      },
+    });
   const avatarPath =
-    settings.avatar.kind === "image" ? settings.avatar.image_path : settings.avatar.model_json_path;
-  const avatarLabel = settings.avatar.kind === "image" ? "静态图片" : "Live2D 模型";
+    settings.avatar.kind === "image"
+      ? settings.avatar.image_path
+      : settings.avatar.kind === "live2d"
+        ? settings.avatar.model_json_path
+        : null;
+  const avatarLabel =
+    settings.avatar.kind === "image"
+      ? "静态图片"
+      : settings.avatar.kind === "live2d"
+        ? "Live2D 模型"
+        : "内置动态形象";
 
   const exportMemory = async () => {
     const memories = await api.listMemories();
@@ -246,12 +271,17 @@ export function SettingsWindow() {
         <section className="settings-card">
           <header>
             <h2>桌面形象</h2>
-            <p>支持 `.model3.json` Live2D 素材包，也支持 png/jpg/webp 静态图片。</p>
+            <p>支持内置动态形象、`.model3.json` Live2D 素材包，以及 png/jpg/webp 静态图片。</p>
           </header>
           <div className="avatar-import">
-            <span>{avatarPath ? `${avatarLabel}：${avatarPath}` : "尚未导入形象"}</span>
+            <span>{avatarPath ? `${avatarLabel}：${avatarPath}` : avatarLabel}</span>
             <ControlButton icon={<FolderOpen size={16} />} variant="primary" onClick={() => void importAvatar()}>
               导入形象
+            </ControlButton>
+          </div>
+          <div className="button-row">
+            <ControlButton variant="primary" onClick={() => void useBuiltInAvatar()}>
+              使用动态守夜猫
             </ControlButton>
           </div>
           <label>

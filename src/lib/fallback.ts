@@ -13,6 +13,7 @@ import type {
   SendChatResponse,
   WorkingMemoryItem,
 } from "./types";
+import { DEFAULT_BUILT_IN_AVATAR_ID } from "./types";
 
 const now = () => new Date().toISOString();
 
@@ -46,8 +47,8 @@ export const fallbackSettings: AppSettings = {
     ],
   },
   avatar: {
-    current_avatar_id: null,
-    kind: "live2d",
+    current_avatar_id: DEFAULT_BUILT_IN_AVATAR_ID,
+    kind: "built_in",
     model_json_path: null,
     image_path: null,
     scale: 1,

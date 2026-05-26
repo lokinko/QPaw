@@ -74,15 +74,20 @@ fn default_reminder_items() -> Vec<ReminderDefinition> {
 pub enum AvatarKind {
     Live2d,
     Image,
+    BuiltIn,
 }
 
 fn default_avatar_kind() -> AvatarKind {
-    AvatarKind::Live2d
+    AvatarKind::BuiltIn
+}
+
+fn default_avatar_id() -> Option<String> {
+    Some("star_lantern_cat".to_string())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AvatarSettings {
-    #[serde(default)]
+    #[serde(default = "default_avatar_id")]
     pub current_avatar_id: Option<String>,
     #[serde(default = "default_avatar_kind")]
     pub kind: AvatarKind,
@@ -101,7 +106,7 @@ fn default_avatar_scale() -> f64 {
 impl Default for AvatarSettings {
     fn default() -> Self {
         Self {
-            current_avatar_id: None,
+            current_avatar_id: default_avatar_id(),
             kind: default_avatar_kind(),
             model_json_path: None,
             image_path: None,
@@ -546,4 +551,29 @@ pub struct SendChatResponse {
     pub user: ChatMessage,
     pub assistant: ChatMessage,
     pub memories: Vec<MemoryDocument>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AppSettings, AvatarKind};
+
+    #[test]
+    fn default_avatar_uses_built_in_star_lantern_cat() {
+        let settings = AppSettings::default();
+
+        assert_eq!(settings.avatar.kind, AvatarKind::BuiltIn);
+        assert_eq!(
+            settings.avatar.current_avatar_id.as_deref(),
+            Some("star_lantern_cat")
+        );
+        assert!(settings.avatar.image_path.is_none());
+        assert!(settings.avatar.model_json_path.is_none());
+    }
+
+    #[test]
+    fn avatar_kind_serializes_as_frontend_snake_case() {
+        let encoded = serde_json::to_value(AvatarKind::BuiltIn).expect("serialize avatar kind");
+
+        assert_eq!(encoded, serde_json::json!("built_in"));
+    }
 }

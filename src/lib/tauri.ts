@@ -132,6 +132,7 @@ export async function pickAvatarAsset(): Promise<string | null> {
 
 export function toAssetUrl(path: string | null): string | null {
   if (!path) return null;
+  if (/^(?:https?:|data:|blob:|\/)/i.test(path)) return path;
   if (!isTauri()) return path;
   return convertFileSrc(path);
 }

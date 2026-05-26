@@ -6,10 +6,10 @@ use uuid::Uuid;
 use crate::debug;
 use crate::error::QPawResult;
 use crate::models::{
-    AppSettings, AvatarKind, AvatarManifest, ChatMessage, InteractionEventKind,
-    LayeredMemoryItem, MemoryConsolidationReport, MemoryDocument, MemoryLayer, MemoryLayerFilter,
-    MemoryQueryRequest, MemoryQueryResponse, MemoryStats, ReminderEvent, ReminderFeedbackPayload,
-    ReminderKind, ReminderPayload, ReminderRuntimeStatus, SendChatResponse, WorkingMemoryItem,
+    AppSettings, AvatarKind, AvatarManifest, ChatMessage, InteractionEventKind, LayeredMemoryItem,
+    MemoryConsolidationReport, MemoryDocument, MemoryLayer, MemoryLayerFilter, MemoryQueryRequest,
+    MemoryQueryResponse, MemoryStats, ReminderEvent, ReminderFeedbackPayload, ReminderKind,
+    ReminderPayload, ReminderRuntimeStatus, SendChatResponse, WorkingMemoryItem,
     PET_WINDOW_MAX_HEIGHT, PET_WINDOW_MAX_WIDTH, PET_WINDOW_MIN_HEIGHT, PET_WINDOW_MIN_WIDTH,
 };
 use crate::AppState;
@@ -73,6 +73,10 @@ pub async fn import_avatar(path: String, state: State<'_, AppState>) -> QPawResu
         }
         AvatarKind::Image => {
             settings.avatar.image_path = manifest.image_path.clone();
+            settings.avatar.model_json_path = None;
+        }
+        AvatarKind::BuiltIn => {
+            settings.avatar.image_path = None;
             settings.avatar.model_json_path = None;
         }
     }
