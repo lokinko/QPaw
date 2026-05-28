@@ -12,6 +12,14 @@ describe("StaticAvatar", () => {
     expect(markup).not.toContain("transform");
   });
 
+  it("passes the configured scale into avatar layout", () => {
+    vi.stubGlobal("window", {});
+
+    const markup = renderToStaticMarkup(<StaticAvatar imagePath="/avatar.png" scale={0.35} />);
+
+    expect(markup).toContain("--avatar-scale:0.35");
+  });
+
   it("marks the rendered image as part of the draggable window region", () => {
     vi.stubGlobal("window", {});
 

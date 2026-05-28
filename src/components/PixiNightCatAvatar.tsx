@@ -17,6 +17,13 @@ type DisplayLike = {
   };
 };
 
+export function fitNightCatCanvasSize(rect: { width: number; height: number }) {
+  return {
+    width: Math.max(Math.round(rect.width), 1),
+    height: Math.max(Math.round(rect.height), 1),
+  };
+}
+
 function drawStar(graphics: any, cx: number, cy: number, outer: number, inner: number) {
   graphics.moveTo(cx, cy - outer);
   for (let i = 1; i < 10; i += 1) {
@@ -56,8 +63,8 @@ export function PixiNightCatAvatar({ detail, scale = 1 }: PixiNightCatAvatarProp
       host.innerHTML = "";
 
       const app = new PIXI.Application({
-        width: 360,
-        height: 360,
+        width: 1,
+        height: 1,
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
@@ -122,8 +129,7 @@ export function PixiNightCatAvatar({ detail, scale = 1 }: PixiNightCatAvatarProp
 
       const fit = () => {
         const rect = host.getBoundingClientRect();
-        const width = Math.max(Math.round(rect.width), 240);
-        const height = Math.max(Math.round(rect.height), 260);
+        const { width, height } = fitNightCatCanvasSize(rect);
         app.renderer.resize(width, height);
         root.x = width / 2;
         root.y = height / 2;

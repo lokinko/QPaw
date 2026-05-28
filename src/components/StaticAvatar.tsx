@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { PlaceholderPet } from "./PlaceholderPet";
 import { toAssetUrl } from "../lib/tauri";
 
@@ -7,9 +7,10 @@ interface StaticAvatarProps {
   scale: number;
 }
 
-export function StaticAvatar({ imagePath }: StaticAvatarProps) {
+export function StaticAvatar({ imagePath, scale }: StaticAvatarProps) {
   const [failed, setFailed] = useState(false);
   const assetUrl = useMemo(() => toAssetUrl(imagePath), [imagePath]);
+  const style = { "--avatar-scale": String(scale) } as CSSProperties;
 
   useEffect(() => {
     setFailed(false);
@@ -20,7 +21,7 @@ export function StaticAvatar({ imagePath }: StaticAvatarProps) {
   }
 
   return (
-    <div className="static-avatar-wrap" data-tauri-drag-region>
+    <div className="static-avatar-wrap" style={style} data-tauri-drag-region>
       <img
         className="static-avatar"
         src={assetUrl}

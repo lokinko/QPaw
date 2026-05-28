@@ -3,6 +3,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, State};
 use uuid::Uuid;
 
+use crate::codex_dev::{codex_dev_status, CodexDevStatus};
 use crate::debug;
 use crate::error::QPawResult;
 use crate::models::{
@@ -18,6 +19,15 @@ use crate::AppState;
 pub async fn get_settings(state: State<'_, AppState>) -> QPawResult<AppSettings> {
     debug::log("command:get_settings", "loading settings");
     state.store.get_settings().await
+}
+
+#[tauri::command]
+pub fn get_codex_dev_status() -> CodexDevStatus {
+    debug::log(
+        "command:get_codex_dev_status",
+        "checking dev-only Codex CLI status",
+    );
+    codex_dev_status()
 }
 
 #[tauri::command]

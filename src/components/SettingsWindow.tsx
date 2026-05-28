@@ -8,6 +8,7 @@ import { fallbackSettings } from "../lib/fallback";
 import {
   DEFAULT_BUILT_IN_AVATAR_ID,
   type AppSettings,
+  type CodexDevStatus,
   type ReminderDefinition,
   type ReminderRuntimeStatus,
 } from "../lib/types";
@@ -16,6 +17,8 @@ export function SettingsWindow() {
   const [settings, setSettings] = useState<AppSettings>(fallbackSettings);
   const [status, setStatus] = useState("设置会自动保存到本机应用数据目录。");
   const [reminderStatus, setReminderStatus] = useState<ReminderRuntimeStatus | null>(null);
+  const [codexStatus, setCodexStatus] = useState<CodexDevStatus | null>(null);
+  const [codexStatusLoading, setCodexStatusLoading] = useState(false);
 
   const refreshReminderStatus = useCallback(async () => {
     const current = await api.getReminderStatus();
@@ -23,14 +26,30 @@ export function SettingsWindow() {
     return current;
   }, []);
 
+  const refreshCodexStatus = useCallback(async (announce = false) => {
+    setCodexStatusLoading(true);
+    try {
+      const current = await api.getCodexDevStatus();
+      setCodexStatus(current);
+      if (announce) setStatus("Codex 开发状态已刷新");
+      return current;
+    } catch (error) {
+      if (announce) setStatus(`Codex 开发状态读取失败：${String(error)}`);
+      throw error;
+    } finally {
+      setCodexStatusLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void api.getSettings().then(setSettings);
     void refreshReminderStatus();
+    void refreshCodexStatus();
     const timer = window.setInterval(() => {
       void refreshReminderStatus();
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [refreshReminderStatus]);
+  }, [refreshReminderStatus, refreshCodexStatus]);
 
   const save = async (next: AppSettings) => {
     setSettings(next);
@@ -190,6 +209,11 @@ export function SettingsWindow() {
               placeholder="只保存在本机明文配置中"
             />
           </label>
+          <CodexDevStatusPanel
+            loading={codexStatusLoading}
+            status={codexStatus}
+            onRefresh={() => void refreshCodexStatus(true)}
+          />
         </section>
 
         <section className="settings-card">
@@ -288,7 +312,7 @@ export function SettingsWindow() {
             形象缩放
             <input
               type="range"
-              min={0.6}
+              min={0.3}
               max={1.6}
               step={0.05}
               value={settings.avatar.scale}
@@ -319,6 +343,48 @@ export function SettingsWindow() {
         <MemoryPanel />
       </div>
     </main>
+  );
+}
+
+function CodexDevStatusPanel({
+  loading,
+  status,
+  onRefresh,
+}: {
+  loading: boolean;
+  status: CodexDevStatus | null;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="codex-dev-status">
+      <div className="codex-dev-status__header">
+        <div>
+          <strong>Codex 开发状态</strong>
+          <span>仅检测本机 Codex CLI，不读取登录文件内容，不作为 LLM API 凭据。</span>
+        </div>
+        <ControlButton icon={<RefreshCw size={16} />} onClick={onRefresh} disabled={loading}>
+          {loading ? "检测中" : "检测"}
+        </ControlButton>
+      </div>
+      <div className="codex-dev-status__grid">
+        <StatusFlag label="CLI" ready={Boolean(status?.cli_installed)} value={status?.cli_version ?? "未检测到"} />
+        <StatusFlag label="app-server" ready={Boolean(status?.app_server_available)} value={status?.app_server_available ? "可用" : "不可用"} />
+        <StatusFlag label="登录文件" ready={Boolean(status?.auth_file_found)} value={status?.auth_file_found ? "已发现" : "未发现"} />
+        <div className="codex-dev-status__path">
+          <span>Auth path</span>
+          <strong>{status?.auth_file_path ?? "无可用路径"}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusFlag({ label, ready, value }: { label: string; ready: boolean; value: string }) {
+  return (
+    <div className={ready ? "codex-dev-status__item ready" : "codex-dev-status__item"}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 

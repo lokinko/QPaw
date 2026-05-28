@@ -11,6 +11,14 @@ export interface LlmConfig {
   model: string;
 }
 
+export interface CodexDevStatus {
+  cli_installed: boolean;
+  cli_version: string | null;
+  auth_file_found: boolean;
+  auth_file_path: string | null;
+  app_server_available: boolean;
+}
+
 export interface ReminderSettings {
   paused: boolean;
   items: ReminderDefinition[];

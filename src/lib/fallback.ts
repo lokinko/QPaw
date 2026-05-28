@@ -2,6 +2,7 @@ import type {
   AppSettings,
   AvatarManifest,
   ChatMessage,
+  CodexDevStatus,
   LayeredMemoryItem,
   MemoryDocument,
   MemoryConsolidationReport,
@@ -83,6 +84,14 @@ export async function invokeFallback<T>(command: string, args?: Record<string, u
   switch (command) {
     case "get_settings":
       return structuredClone(settings) as T;
+    case "get_codex_dev_status":
+      return {
+        cli_installed: false,
+        cli_version: null,
+        auth_file_found: false,
+        auth_file_path: null,
+        app_server_available: false,
+      } satisfies CodexDevStatus as T;
     case "save_settings":
       settings = structuredClone(args?.settings as AppSettings);
       return settings as T;

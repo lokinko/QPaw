@@ -1,5 +1,6 @@
 mod avatar;
 mod chat;
+mod codex_dev;
 mod commands;
 mod debug;
 mod error;
@@ -15,11 +16,11 @@ use std::sync::Arc;
 
 use avatar::AvatarStore;
 use commands::{
-    clear_memory, clear_working_memory, delete_memory_item, get_memory_stats, get_reminder_status,
-    get_settings, import_avatar, list_chat_history, list_memories, list_memory_items,
-    list_working_memory, query_memory, record_task_event, run_memory_consolidation,
-    save_pet_window_size, save_settings, send_chat_message, set_reminder_feedback,
-    trigger_test_reminder,
+    clear_memory, clear_working_memory, delete_memory_item, get_codex_dev_status, get_memory_stats,
+    get_reminder_status, get_settings, import_avatar, list_chat_history, list_memories,
+    list_memory_items, list_working_memory, query_memory, record_task_event,
+    run_memory_consolidation, save_pet_window_size, save_settings, send_chat_message,
+    set_reminder_feedback, trigger_test_reminder,
 };
 use error::QPawError;
 use idle::SystemIdleProvider;
@@ -202,6 +203,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_settings,
+            get_codex_dev_status,
             save_settings,
             save_pet_window_size,
             import_avatar,
