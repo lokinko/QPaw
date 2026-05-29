@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 
 use crate::models::{
-    AvatarManifest, ConsolidationStatus, InteractionEvent, InteractionEventKind, LayeredMemoryItem,
-    MemoryConsolidationJob, MemoryL0, MemoryL0Category, MemoryL1Concept, MemoryL1Relation,
-    MemoryL2Event, MemoryL3Reflection, MemoryLayer, MemoryStatus, ReflectionKind, WorkingMemoryItem,
-    WorkingMemoryKind,
+    AvatarManifest, ConsolidationStatus, ExplicitMemoryItem, ExplicitMemoryStatus,
+    InteractionEvent, InteractionEventKind, LayeredMemoryItem, MemoryConsolidationJob, MemoryL0,
+    MemoryL0Category, MemoryL1Concept, MemoryL1Relation, MemoryL2Event, MemoryL3Reflection,
+    MemoryLayer, MemoryStatus, ReflectionKind, WorkingMemoryItem, WorkingMemoryKind,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,6 +126,50 @@ impl From<WorkingMemoryRecord> for WorkingMemoryItem {
             created_at: item.created_at,
             updated_at: item.updated_at,
             expires_at: item.expires_at,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(super) struct ExplicitMemoryRecord {
+    pub(super) uid: String,
+    pub(super) normalized_body: String,
+    pub(super) body: String,
+    pub(super) source: String,
+    pub(super) tags: Vec<String>,
+    pub(super) keywords: Vec<String>,
+    pub(super) created_at: DateTime<Utc>,
+    pub(super) last_used_at: DateTime<Utc>,
+    pub(super) status: ExplicitMemoryStatus,
+}
+
+impl ExplicitMemoryRecord {
+    pub(super) fn from_item(item: &ExplicitMemoryItem, normalized_body: String) -> Self {
+        Self {
+            uid: item.id.clone(),
+            normalized_body,
+            body: item.body.clone(),
+            source: item.source.clone(),
+            tags: item.tags.clone(),
+            keywords: item.keywords.clone(),
+            created_at: item.created_at,
+            last_used_at: item.last_used_at,
+            status: item.status.clone(),
+        }
+    }
+}
+
+impl From<ExplicitMemoryRecord> for ExplicitMemoryItem {
+    fn from(item: ExplicitMemoryRecord) -> Self {
+        Self {
+            id: item.uid,
+            body: item.body,
+            source: item.source,
+            tags: item.tags,
+            keywords: item.keywords,
+            created_at: item.created_at,
+            last_used_at: item.last_used_at,
+            status: item.status,
         }
     }
 }
@@ -521,4 +565,3 @@ impl From<MemoryL3Reflection> for LayeredMemoryItem {
         }
     }
 }
-

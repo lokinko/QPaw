@@ -11,6 +11,7 @@ import type {
   ChatMessage,
   CodexDevStatus,
   LayeredMemoryItem,
+  LlmConnectionTestResult,
   MemoryConsolidationReport,
   MemoryDocument,
   MemoryLayer,
@@ -86,6 +87,8 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 export const api = {
   getSettings: () => call<AppSettings>("get_settings"),
   getCodexDevStatus: () => call<CodexDevStatus>("get_codex_dev_status"),
+  testLlmConnection: (settings: AppSettings) =>
+    call<LlmConnectionTestResult>("test_llm_connection", { settings }),
   saveSettings: (settings: AppSettings) => call<AppSettings>("save_settings", { settings }),
   savePetWindowSize: (width: number, height: number) =>
     call<void>("save_pet_window_size", { width, height }),

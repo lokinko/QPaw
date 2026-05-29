@@ -23,7 +23,7 @@ CLI mode unless the user explicitly selects OpenAI-compatible mode.
 QPaw should call Codex non-interactively:
 
 ```powershell
-codex exec --ephemeral --skip-git-repo-check --sandbox read-only --ask-for-approval never -
+codex exec --ephemeral --skip-git-repo-check --sandbox read-only -
 ```
 
 The prompt is passed through stdin. If the settings model is non-empty, append
@@ -37,12 +37,11 @@ should ask Codex to return only QPaw's assistant reply.
 Codex CLI mode must be read-only by default:
 
 - `--sandbox read-only`
-- `--ask-for-approval never`
 - `--ephemeral`
 - `--skip-git-repo-check`
 
 This keeps QPaw chat from writing files, mutating the repository, or prompting
-for approvals during normal conversation.
+for write access during normal conversation.
 
 ## Connectivity Test
 

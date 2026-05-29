@@ -4,6 +4,7 @@ import type {
   ChatMessage,
   CodexDevStatus,
   LayeredMemoryItem,
+  LlmConnectionTestResult,
   MemoryDocument,
   MemoryConsolidationReport,
   MemoryLayerFilter,
@@ -20,9 +21,22 @@ const now = () => new Date().toISOString();
 
 export const fallbackSettings: AppSettings = {
   llm: {
+    provider: "codex_cli",
     base_url: "https://api.openai.com/v1",
     api_key: "",
-    model: "gpt-4.1-mini",
+    model: "",
+    provider_configs: {
+      codex_cli: {
+        base_url: "",
+        api_key: "",
+        model: "",
+      },
+      open_ai_compatible: {
+        base_url: "https://api.openai.com/v1",
+        api_key: "",
+        model: "gpt-4.1-mini",
+      },
+    },
   },
   reminders: {
     paused: false,
@@ -70,6 +84,19 @@ export const fallbackSettings: AppSettings = {
     working_memory_enabled: true,
     working_memory_retention_hours: 36,
   },
+  personal_memory: {
+    enabled: true,
+    daily_prompt_limit: 2,
+    allowed_windows: [
+      { start: "13:30", end: "16:30" },
+      { start: "20:00", end: "23:00" },
+    ],
+    idle_threshold_seconds: 180,
+    fullscreen_behavior: "hide",
+    memory_sensitivity: "balanced",
+    allow_confirmation_questions: true,
+    allow_low_confidence_in_review: false,
+  },
   privacy_scope: "minimal",
 };
 
@@ -92,6 +119,20 @@ export async function invokeFallback<T>(command: string, args?: Record<string, u
         auth_file_path: null,
         app_server_available: false,
       } satisfies CodexDevStatus as T;
+    case "test_llm_connection": {
+      const testSettings = (args?.settings as AppSettings | undefined) ?? settings;
+      const missingOpenAiConfig =
+        testSettings.llm.provider === "open_ai_compatible" &&
+        (!testSettings.llm.base_url || !testSettings.llm.model || !testSettings.llm.api_key);
+      return {
+        provider: testSettings.llm.provider,
+        success: !missingOpenAiConfig,
+        message: missingOpenAiConfig
+          ? "LLM connectivity test failed"
+          : "LLM connectivity test succeeded",
+        detail: missingOpenAiConfig ? "OpenAI-compatible provider requires configuration" : "Fallback runtime",
+      } satisfies LlmConnectionTestResult as T;
+    }
     case "save_settings":
       settings = structuredClone(args?.settings as AppSettings);
       return settings as T;
@@ -158,7 +199,28 @@ export async function invokeFallback<T>(command: string, args?: Record<string, u
       if (/记住|remember/i.test(content)) {
         memories = [{ body: content, source: "chat", created_at: now() }, ...memories];
       }
-      return { user, assistant, memories } satisfies SendChatResponse as T;
+      const memoryDecision =
+        /记住|记得|记一下|以后提醒我|remember|note that/i.test(content)
+          ? {
+              action: "save" as const,
+              reason: "explicit_memory_request",
+              tags: ["explicit_memory_request"],
+              confirmation_prompt: null,
+            }
+          : /睡不好|睡眠|疲惫|很累|没精神|焦虑|压力|疼|不舒服|肩颈|头痛|胃/.test(content)
+            ? {
+                action: "ask" as const,
+                reason: "possible_personal_state_signal",
+                tags: ["personal_state"],
+                confirmation_prompt: "这件事以后可能有用，要我记一下吗？",
+              }
+            : {
+                action: "ignore" as const,
+                reason: "no_memory_signal",
+                tags: [],
+                confirmation_prompt: null,
+              };
+      return { user, assistant, memories, memory_decision: memoryDecision } satisfies SendChatResponse as T;
     }
     case "list_chat_history":
       return structuredClone(chatHistory) as T;

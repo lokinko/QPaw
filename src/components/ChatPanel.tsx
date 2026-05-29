@@ -10,6 +10,7 @@ export function ChatPanel() {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("正在加载历史对话...");
   const [isSending, setIsSending] = useState(false);
+  const [memoryPrompt, setMemoryPrompt] = useState<string | null>(null);
 
   const loadHistory = async () => {
     debugLog("chat-panel:history:start");
@@ -31,22 +32,35 @@ export function ChatPanel() {
   const send = async () => {
     const message = input.trim();
     if (!message || isSending) return;
+    const pendingUser: ChatMessage = {
+      role: "user",
+      content: message,
+      created_at: new Date().toISOString(),
+    };
     setInput("");
     setIsSending(true);
+    setMessages((current) => [...current, pendingUser]);
+    setStatus("正在等待回复...");
     debugLog("chat-panel:send:start", { messageLen: message.length });
     try {
       const response = await api.sendChatMessage(message);
+      setMemoryPrompt(response.memory_decision?.confirmation_prompt ?? null);
       debugLog("chat-panel:send:ok", {
         assistantLen: response.assistant.content.length,
         memories: response.memories.length,
       });
-      setMessages((current) => [...current, response.user, response.assistant]);
+      setMessages((current) => [
+        ...current.slice(0, -1),
+        response.user,
+        response.assistant,
+      ]);
       setStatus("已保存到本地历史对话");
     } catch (error) {
+      setMemoryPrompt(null);
       debugError("chat-panel:send:failed", error, { messageLen: message.length });
       setMessages((current) => [
-        ...current,
-        { role: "user", content: message, created_at: new Date().toISOString() },
+        ...current.slice(0, -1),
+        pendingUser,
         {
           role: "assistant",
           content: `发送失败：${formatError(error)}`,
@@ -73,6 +87,9 @@ export function ChatPanel() {
       </div>
 
       <p className="status-line">{status}</p>
+      <p className="chat-memory-decision" aria-live="polite">
+        {memoryPrompt ?? ""}
+      </p>
 
       <div className="chat-log" aria-live="polite">
         {messages.length === 0 ? (

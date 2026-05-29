@@ -5,6 +5,7 @@ use surrealdb::engine::local::SurrealKv;
 use surrealdb::Surreal;
 
 mod conversation;
+mod explicit_memory;
 mod records;
 mod reminder_events;
 mod settings;
@@ -55,6 +56,7 @@ impl DocumentStore {
         self.db
             .query(
                 "DELETE memory;
+                 DELETE explicit_memory;
                  DELETE interaction_event;
                  DELETE working_memory;
                  DELETE memory_l0;
@@ -623,6 +625,110 @@ mod tests {
             assert_eq!(items.len(), 1);
             assert_eq!(items[0].id, item.id);
             assert_eq!(items[0].summary, item.summary);
+        }
+        let _ = std::fs::remove_dir_all(path);
+    }
+
+    #[tokio::test]
+    async fn explicit_memory_upsert_deduplicates_normalized_body() {
+        let path = test_db_path("explicit-memory-dedupe");
+        {
+            let store = DocumentStore::connect(path.clone()).await.unwrap();
+            let first = crate::models::ExplicitMemoryItem {
+                id: "explicit_first".to_string(),
+                body: "记住我喜欢简洁回答".to_string(),
+                source: "chat".to_string(),
+                tags: vec!["explicit_memory_request".to_string()],
+                keywords: vec!["简洁".to_string(), "回答".to_string()],
+                created_at: chrono::Utc::now(),
+                last_used_at: chrono::Utc::now(),
+                status: crate::models::ExplicitMemoryStatus::Active,
+            };
+            let second = crate::models::ExplicitMemoryItem {
+                id: "explicit_second".to_string(),
+                body: "  记住我喜欢简洁回答  ".to_string(),
+                source: "chat".to_string(),
+                tags: vec!["explicit_memory_request".to_string()],
+                keywords: vec!["简洁".to_string(), "回答".to_string()],
+                created_at: chrono::Utc::now(),
+                last_used_at: chrono::Utc::now(),
+                status: crate::models::ExplicitMemoryStatus::Active,
+            };
+
+            store.upsert_explicit_memory(&first).await.unwrap();
+            store.upsert_explicit_memory(&second).await.unwrap();
+            let items = store.list_active_explicit_memories().await.unwrap();
+
+            assert_eq!(items.len(), 1);
+            assert_eq!(items[0].body.trim(), "记住我喜欢简洁回答");
+        }
+        let _ = std::fs::remove_dir_all(path);
+    }
+
+    #[tokio::test]
+    async fn explicit_memory_upsert_replaces_same_id_when_body_changes() {
+        let path = test_db_path("explicit-memory-same-id");
+        {
+            let store = DocumentStore::connect(path.clone()).await.unwrap();
+            let now = chrono::Utc::now();
+            let first = crate::models::ExplicitMemoryItem {
+                id: "explicit_same_id".to_string(),
+                body: "记住我喜欢简洁回答".to_string(),
+                source: "chat".to_string(),
+                tags: vec!["explicit_memory_request".to_string()],
+                keywords: vec!["简洁".to_string(), "回答".to_string()],
+                created_at: now,
+                last_used_at: now,
+                status: crate::models::ExplicitMemoryStatus::Active,
+            };
+            let second = crate::models::ExplicitMemoryItem {
+                id: "explicit_same_id".to_string(),
+                body: "记住我喜欢安静提醒".to_string(),
+                source: "chat".to_string(),
+                tags: vec!["explicit_memory_request".to_string()],
+                keywords: vec!["安静".to_string(), "提醒".to_string()],
+                created_at: now,
+                last_used_at: now + ChronoDuration::seconds(1),
+                status: crate::models::ExplicitMemoryStatus::Active,
+            };
+
+            store.upsert_explicit_memory(&first).await.unwrap();
+            store.upsert_explicit_memory(&second).await.unwrap();
+            let items = store.list_active_explicit_memories().await.unwrap();
+
+            assert_eq!(items.len(), 1);
+            assert_eq!(items[0].body, "记住我喜欢安静提醒");
+            assert_eq!(items[0].keywords, vec!["安静", "提醒"]);
+        }
+        let _ = std::fs::remove_dir_all(path);
+    }
+
+    #[tokio::test]
+    async fn explicit_memory_round_trips_active_items() {
+        let path = test_db_path("explicit-memory-roundtrip");
+        {
+            let store = DocumentStore::connect(path.clone()).await.unwrap();
+            let item = crate::models::ExplicitMemoryItem {
+                id: "explicit_roundtrip".to_string(),
+                body: "remember that I prefer concise replies".to_string(),
+                source: "chat".to_string(),
+                tags: vec!["explicit_memory_request".to_string()],
+                keywords: vec![
+                    "prefer".to_string(),
+                    "concise".to_string(),
+                    "replies".to_string(),
+                ],
+                created_at: chrono::Utc::now(),
+                last_used_at: chrono::Utc::now(),
+                status: crate::models::ExplicitMemoryStatus::Active,
+            };
+
+            store.upsert_explicit_memory(&item).await.unwrap();
+            let items = store.list_active_explicit_memories().await.unwrap();
+
+            assert_eq!(items.len(), 1);
+            assert_eq!(items[0].id, "explicit_roundtrip");
+            assert_eq!(items[0].keywords, vec!["prefer", "concise", "replies"]);
         }
         let _ = std::fs::remove_dir_all(path);
     }

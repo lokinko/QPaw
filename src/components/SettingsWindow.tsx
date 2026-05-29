@@ -5,10 +5,12 @@ import { ControlButton } from "./ControlButton";
 import { MemoryPanel } from "./MemoryPanel";
 import { api, isTauriRuntime, pickAvatarAsset } from "../lib/tauri";
 import { fallbackSettings } from "../lib/fallback";
+import { switchLlmProvider, updateActiveLlmConfig } from "../lib/llmProviderSettings";
 import {
   DEFAULT_BUILT_IN_AVATAR_ID,
   type AppSettings,
   type CodexDevStatus,
+  type LlmConnectionTestResult,
   type ReminderDefinition,
   type ReminderRuntimeStatus,
 } from "../lib/types";
@@ -19,6 +21,8 @@ export function SettingsWindow() {
   const [reminderStatus, setReminderStatus] = useState<ReminderRuntimeStatus | null>(null);
   const [codexStatus, setCodexStatus] = useState<CodexDevStatus | null>(null);
   const [codexStatusLoading, setCodexStatusLoading] = useState(false);
+  const [llmTestResult, setLlmTestResult] = useState<LlmConnectionTestResult | null>(null);
+  const [llmTestLoading, setLlmTestLoading] = useState(false);
 
   const refreshReminderStatus = useCallback(async () => {
     const current = await api.getReminderStatus();
@@ -59,10 +63,30 @@ export function SettingsWindow() {
   };
 
   const llmReady = useMemo(
-    () => Boolean(settings.llm.base_url && settings.llm.model && settings.llm.api_key),
-    [settings.llm],
+    () =>
+      settings.llm.provider === "codex_cli"
+        ? Boolean(codexStatus?.cli_installed && codexStatus?.auth_file_found)
+        : Boolean(settings.llm.base_url && settings.llm.model && settings.llm.api_key),
+    [codexStatus, settings.llm],
   );
   const desktopRuntime = isTauriRuntime();
+
+  const useCodexCliProvider = () =>
+    save(switchLlmProvider(settings, "codex_cli"));
+
+  const testLlmConnection = async () => {
+    setLlmTestLoading(true);
+    setLlmTestResult(null);
+    try {
+      const result = await api.testLlmConnection(settings);
+      setLlmTestResult(result);
+      setStatus(result.success ? "LLM 连通性测试成功" : "LLM 连通性测试失败");
+    } catch (error) {
+      setStatus(`LLM 连通性测试失败：${String(error)}`);
+    } finally {
+      setLlmTestLoading(false);
+    }
+  };
 
   const updateReminderPaused = (paused: boolean) =>
     save({ ...settings, reminders: { ...settings.reminders, paused } });
@@ -176,14 +200,34 @@ export function SettingsWindow() {
         <section className="settings-card">
           <header>
             <h2>LLM 服务</h2>
-            <p>OpenAI 兼容接口，提醒规则不依赖网络。</p>
+            <p>可使用 Codex CLI 登录态，或切换到 OpenAI 兼容接口。</p>
           </header>
+          <label>
+            Provider
+            <select
+              value={settings.llm.provider}
+              onChange={(event) =>
+                save(switchLlmProvider(settings, event.target.value as typeof settings.llm.provider))
+              }
+            >
+              <option value="codex_cli">Codex CLI</option>
+              <option value="open_ai_compatible">OpenAI Compatible</option>
+            </select>
+          </label>
+          <div className="button-row">
+            <ControlButton variant="primary" onClick={() => void useCodexCliProvider()}>
+              使用 Codex CLI
+            </ControlButton>
+            <ControlButton icon={<RefreshCw size={16} />} onClick={() => void testLlmConnection()} disabled={llmTestLoading}>
+              {llmTestLoading ? "测试中" : "测试连通性"}
+            </ControlButton>
+          </div>
           <label>
             Base URL
             <input
               value={settings.llm.base_url}
               onChange={(event) =>
-                save({ ...settings, llm: { ...settings.llm, base_url: event.target.value } })
+                save(updateActiveLlmConfig(settings, { base_url: event.target.value }))
               }
               placeholder="https://api.openai.com/v1"
             />
@@ -193,7 +237,7 @@ export function SettingsWindow() {
             <input
               value={settings.llm.model}
               onChange={(event) =>
-                save({ ...settings, llm: { ...settings.llm, model: event.target.value } })
+                save(updateActiveLlmConfig(settings, { model: event.target.value }))
               }
               placeholder="gpt-4.1-mini"
             />
@@ -202,13 +246,20 @@ export function SettingsWindow() {
             API Key
             <input
               type="password"
+              disabled={settings.llm.provider === "codex_cli"}
               value={settings.llm.api_key}
               onChange={(event) =>
-                save({ ...settings, llm: { ...settings.llm, api_key: event.target.value } })
+                save(updateActiveLlmConfig(settings, { api_key: event.target.value }))
               }
-              placeholder="只保存在本机明文配置中"
+              placeholder={settings.llm.provider === "codex_cli" ? "Codex CLI 不需要 API Key" : "只保存在本机明文配置中"}
             />
           </label>
+          {llmTestResult ? (
+            <p className={llmTestResult.success ? "status-line ready" : "status-line"}>
+              {llmTestResult.message}
+              {llmTestResult.detail ? `：${llmTestResult.detail}` : ""}
+            </p>
+          ) : null}
           <CodexDevStatusPanel
             loading={codexStatusLoading}
             status={codexStatus}
@@ -290,6 +341,84 @@ export function SettingsWindow() {
             )}
           </div>
           <ReminderRuntimeSummary status={reminderStatus} />
+        </section>
+
+        <section className="settings-card">
+          <header>
+            <h2>个人记忆助理</h2>
+            <p>QPaw 会在低打扰时机询问近况，并判断哪些表达值得记住。</p>
+          </header>
+          <label className="toggle-row">
+            <input
+              type="checkbox"
+              checked={settings.personal_memory.enabled}
+              onChange={(event) =>
+                save({
+                  ...settings,
+                  personal_memory: {
+                    ...settings.personal_memory,
+                    enabled: event.target.checked,
+                  },
+                })
+              }
+            />
+            启用主动关心
+          </label>
+          <label>
+            每日主动上限
+            <input
+              type="number"
+              min={0}
+              max={6}
+              value={settings.personal_memory.daily_prompt_limit}
+              onChange={(event) =>
+                save({
+                  ...settings,
+                  personal_memory: {
+                    ...settings.personal_memory,
+                    daily_prompt_limit: Number(event.target.value),
+                  },
+                })
+              }
+            />
+          </label>
+          <label>
+            空闲阈值（秒）
+            <input
+              type="number"
+              min={30}
+              step={30}
+              value={settings.personal_memory.idle_threshold_seconds}
+              onChange={(event) =>
+                save({
+                  ...settings,
+                  personal_memory: {
+                    ...settings.personal_memory,
+                    idle_threshold_seconds: Number(event.target.value),
+                  },
+                })
+              }
+            />
+          </label>
+          <label>
+            记忆敏感度
+            <select
+              value={settings.personal_memory.memory_sensitivity}
+              onChange={(event) =>
+                save({
+                  ...settings,
+                  personal_memory: {
+                    ...settings.personal_memory,
+                    memory_sensitivity: event.target.value as typeof settings.personal_memory.memory_sensitivity,
+                  },
+                })
+              }
+            >
+              <option value="conservative">保守</option>
+              <option value="balanced">平衡</option>
+              <option value="active">积极</option>
+            </select>
+          </label>
         </section>
 
         <section className="settings-card">

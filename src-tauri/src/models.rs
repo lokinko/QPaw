@@ -2,21 +2,94 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LlmProvider {
+    OpenAiCompatible,
+    CodexCli,
+}
+
+impl Default for LlmProvider {
+    fn default() -> Self {
+        Self::CodexCli
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmConfig {
+    #[serde(default)]
+    pub provider: LlmProvider,
     pub base_url: String,
     pub api_key: String,
     pub model: String,
+    #[serde(default)]
+    pub provider_configs: LlmProviderConfigs,
 }
 
 impl Default for LlmConfig {
     fn default() -> Self {
         Self {
+            provider: LlmProvider::CodexCli,
             base_url: "https://api.openai.com/v1".to_string(),
             api_key: String::new(),
-            model: "gpt-4.1-mini".to_string(),
+            model: String::new(),
+            provider_configs: LlmProviderConfigs::default(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LlmProviderConfig {
+    #[serde(default)]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default)]
+    pub model: String,
+}
+
+impl Default for LlmProviderConfig {
+    fn default() -> Self {
+        Self {
+            base_url: String::new(),
+            api_key: String::new(),
+            model: String::new(),
+        }
+    }
+}
+
+fn default_openai_compatible_provider_config() -> LlmProviderConfig {
+    LlmProviderConfig {
+        base_url: "https://api.openai.com/v1".to_string(),
+        api_key: String::new(),
+        model: "gpt-4.1-mini".to_string(),
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LlmProviderConfigs {
+    #[serde(default)]
+    pub codex_cli: LlmProviderConfig,
+    #[serde(default = "default_openai_compatible_provider_config")]
+    pub open_ai_compatible: LlmProviderConfig,
+}
+
+impl Default for LlmProviderConfigs {
+    fn default() -> Self {
+        Self {
+            codex_cli: LlmProviderConfig::default(),
+            open_ai_compatible: default_openai_compatible_provider_config(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LlmConnectionTestResult {
+    pub provider: LlmProvider,
+    pub success: bool,
+    pub message: String,
+    #[serde(default)]
+    pub detail: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -176,6 +249,95 @@ fn default_working_memory_retention_hours() -> u64 {
     36
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FullscreenBehavior {
+    Hide,
+    Silent,
+    Off,
+}
+
+fn default_fullscreen_behavior() -> FullscreenBehavior {
+    FullscreenBehavior::Hide
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MemorySensitivity {
+    Conservative,
+    Balanced,
+    Active,
+}
+
+fn default_memory_sensitivity() -> MemorySensitivity {
+    MemorySensitivity::Balanced
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PersonalMemoryWindow {
+    pub start: String,
+    pub end: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersonalMemorySettings {
+    pub enabled: bool,
+    #[serde(default = "default_daily_prompt_limit")]
+    pub daily_prompt_limit: u8,
+    #[serde(default = "default_personal_memory_windows")]
+    pub allowed_windows: Vec<PersonalMemoryWindow>,
+    #[serde(default = "default_idle_threshold_seconds")]
+    pub idle_threshold_seconds: u64,
+    #[serde(default = "default_fullscreen_behavior")]
+    pub fullscreen_behavior: FullscreenBehavior,
+    #[serde(default = "default_memory_sensitivity")]
+    pub memory_sensitivity: MemorySensitivity,
+    #[serde(default = "default_allow_confirmation_questions")]
+    pub allow_confirmation_questions: bool,
+    #[serde(default)]
+    pub allow_low_confidence_in_review: bool,
+}
+
+impl Default for PersonalMemorySettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            daily_prompt_limit: default_daily_prompt_limit(),
+            allowed_windows: default_personal_memory_windows(),
+            idle_threshold_seconds: default_idle_threshold_seconds(),
+            fullscreen_behavior: default_fullscreen_behavior(),
+            memory_sensitivity: default_memory_sensitivity(),
+            allow_confirmation_questions: default_allow_confirmation_questions(),
+            allow_low_confidence_in_review: false,
+        }
+    }
+}
+
+fn default_daily_prompt_limit() -> u8 {
+    2
+}
+
+fn default_personal_memory_windows() -> Vec<PersonalMemoryWindow> {
+    vec![
+        PersonalMemoryWindow {
+            start: "13:30".to_string(),
+            end: "16:30".to_string(),
+        },
+        PersonalMemoryWindow {
+            start: "20:00".to_string(),
+            end: "23:00".to_string(),
+        },
+    ]
+}
+
+fn default_idle_threshold_seconds() -> u64 {
+    180
+}
+
+fn default_allow_confirmation_questions() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     pub llm: LlmConfig,
@@ -184,6 +346,8 @@ pub struct AppSettings {
     pub window: WindowSettings,
     #[serde(default)]
     pub memory: MemorySettings,
+    #[serde(default)]
+    pub personal_memory: PersonalMemorySettings,
     pub privacy_scope: String,
 }
 
@@ -195,6 +359,7 @@ impl Default for AppSettings {
             avatar: AvatarSettings::default(),
             window: WindowSettings::default(),
             memory: MemorySettings::default(),
+            personal_memory: PersonalMemorySettings::default(),
             privacy_scope: "minimal".to_string(),
         }
     }
@@ -231,6 +396,26 @@ pub struct MemoryDocument {
     pub body: String,
     pub source: String,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExplicitMemoryStatus {
+    Active,
+    Consolidated,
+    Archived,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExplicitMemoryItem {
+    pub id: String,
+    pub body: String,
+    pub source: String,
+    pub tags: Vec<String>,
+    pub keywords: Vec<String>,
+    pub created_at: DateTime<Utc>,
+    pub last_used_at: DateTime<Utc>,
+    pub status: ExplicitMemoryStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -547,15 +732,28 @@ pub struct ReminderEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMemoryDecision {
+    pub action: String,
+    pub reason: String,
+    pub tags: Vec<String>,
+    pub confirmation_prompt: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendChatResponse {
     pub user: ChatMessage,
     pub assistant: ChatMessage,
     pub memories: Vec<MemoryDocument>,
+    #[serde(default)]
+    pub memory_decision: Option<ChatMemoryDecision>,
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{AppSettings, AvatarKind};
+    use super::{
+        AppSettings, AvatarKind, ExplicitMemoryItem, ExplicitMemoryStatus, FullscreenBehavior,
+        LlmProvider, MemorySensitivity,
+    };
 
     #[test]
     fn default_avatar_uses_built_in_star_lantern_cat() {
@@ -575,5 +773,97 @@ mod tests {
         let encoded = serde_json::to_value(AvatarKind::BuiltIn).expect("serialize avatar kind");
 
         assert_eq!(encoded, serde_json::json!("built_in"));
+    }
+
+    #[test]
+    fn default_llm_provider_uses_codex_cli_without_api_key() {
+        let settings = AppSettings::default();
+
+        assert_eq!(settings.llm.provider, LlmProvider::CodexCli);
+        assert!(settings.llm.api_key.is_empty());
+        assert!(settings.llm.model.is_empty());
+    }
+
+    #[test]
+    fn llm_connection_test_result_serializes_provider() {
+        let result = super::LlmConnectionTestResult {
+            provider: LlmProvider::CodexCli,
+            success: true,
+            message: "ok".to_string(),
+            detail: None,
+        };
+
+        let encoded = serde_json::to_value(result).expect("serialize llm connection test result");
+
+        assert_eq!(encoded["provider"], serde_json::json!("codex_cli"));
+        assert_eq!(encoded["success"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn default_personal_memory_assistant_settings_are_low_interruption() {
+        let settings = AppSettings::default();
+
+        assert!(settings.personal_memory.enabled);
+        assert_eq!(settings.personal_memory.daily_prompt_limit, 2);
+        assert_eq!(settings.personal_memory.idle_threshold_seconds, 180);
+        assert_eq!(
+            settings.personal_memory.fullscreen_behavior,
+            FullscreenBehavior::Hide
+        );
+        assert_eq!(
+            settings.personal_memory.memory_sensitivity,
+            MemorySensitivity::Balanced
+        );
+        assert!(settings.personal_memory.allow_confirmation_questions);
+        assert!(!settings.personal_memory.allow_low_confidence_in_review);
+        assert_eq!(settings.personal_memory.allowed_windows.len(), 2);
+        assert_eq!(settings.personal_memory.allowed_windows[0].start, "13:30");
+        assert_eq!(settings.personal_memory.allowed_windows[0].end, "16:30");
+        assert_eq!(settings.personal_memory.allowed_windows[1].start, "20:00");
+        assert_eq!(settings.personal_memory.allowed_windows[1].end, "23:00");
+    }
+
+    #[test]
+    fn chat_memory_decision_serializes_confirmation_prompt() {
+        let decision = super::ChatMemoryDecision {
+            action: "ask".to_string(),
+            reason: "possible_personal_state_signal".to_string(),
+            tags: vec!["personal_state".to_string()],
+            confirmation_prompt: Some("这件事以后可能有用，要我记一下吗？".to_string()),
+        };
+
+        let encoded = serde_json::to_value(decision).expect("serialize memory decision");
+
+        assert_eq!(encoded["action"], "ask");
+        assert_eq!(
+            encoded["confirmation_prompt"],
+            serde_json::json!("这件事以后可能有用，要我记一下吗？")
+        );
+    }
+
+    #[test]
+    fn explicit_memory_status_serializes_as_snake_case() {
+        let encoded = serde_json::to_value(ExplicitMemoryStatus::Consolidated)
+            .expect("serialize explicit memory status");
+
+        assert_eq!(encoded, serde_json::json!("consolidated"));
+    }
+
+    #[test]
+    fn explicit_memory_item_preserves_original_body_and_keywords() {
+        let now = chrono::Utc::now();
+        let item = ExplicitMemoryItem {
+            id: "explicit_1".to_string(),
+            body: "记住我喜欢简洁回答".to_string(),
+            source: "chat".to_string(),
+            tags: vec!["explicit_memory_request".to_string()],
+            keywords: vec!["简洁".to_string(), "回答".to_string()],
+            created_at: now,
+            last_used_at: now,
+            status: ExplicitMemoryStatus::Active,
+        };
+
+        assert_eq!(item.body, "记住我喜欢简洁回答");
+        assert_eq!(item.keywords, vec!["简洁", "回答"]);
     }
 }

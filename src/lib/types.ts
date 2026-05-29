@@ -4,11 +4,25 @@ export const DEFAULT_AVATAR_IMAGE_PATH = "/concepts/star-lantern-cat-concept.png
 export const DEFAULT_BUILT_IN_AVATAR_ID = "star_lantern_cat";
 
 export type ReminderFeedback = "done" | "snoozed" | "dismissed";
+export type LlmProvider = "open_ai_compatible" | "codex_cli";
 
 export interface LlmConfig {
+  provider: LlmProvider;
   base_url: string;
   api_key: string;
   model: string;
+  provider_configs?: LlmProviderConfigs;
+}
+
+export interface LlmProviderConfig {
+  base_url: string;
+  api_key: string;
+  model: string;
+}
+
+export interface LlmProviderConfigs {
+  codex_cli: LlmProviderConfig;
+  open_ai_compatible: LlmProviderConfig;
 }
 
 export interface CodexDevStatus {
@@ -17,6 +31,13 @@ export interface CodexDevStatus {
   auth_file_found: boolean;
   auth_file_path: string | null;
   app_server_available: boolean;
+}
+
+export interface LlmConnectionTestResult {
+  provider: LlmProvider;
+  success: boolean;
+  message: string;
+  detail: string | null;
 }
 
 export interface ReminderSettings {
@@ -62,12 +83,32 @@ export interface MemorySettings {
   working_memory_retention_hours: number;
 }
 
+export type FullscreenBehavior = "hide" | "silent" | "off";
+export type MemorySensitivity = "conservative" | "balanced" | "active";
+
+export interface PersonalMemoryWindow {
+  start: string;
+  end: string;
+}
+
+export interface PersonalMemorySettings {
+  enabled: boolean;
+  daily_prompt_limit: number;
+  allowed_windows: PersonalMemoryWindow[];
+  idle_threshold_seconds: number;
+  fullscreen_behavior: FullscreenBehavior;
+  memory_sensitivity: MemorySensitivity;
+  allow_confirmation_questions: boolean;
+  allow_low_confidence_in_review: boolean;
+}
+
 export interface AppSettings {
   llm: LlmConfig;
   reminders: ReminderSettings;
   avatar: AvatarSettings;
   window: WindowSettings;
   memory: MemorySettings;
+  personal_memory: PersonalMemorySettings;
   privacy_scope: "minimal";
 }
 
@@ -127,10 +168,20 @@ export interface ReminderFeedbackPayload {
   feedback: ReminderFeedback;
 }
 
+export type ChatMemoryDecisionAction = "ignore" | "save" | "ask";
+
+export interface ChatMemoryDecision {
+  action: ChatMemoryDecisionAction;
+  reason: string;
+  tags: string[];
+  confirmation_prompt: string | null;
+}
+
 export interface SendChatResponse {
   user: ChatMessage;
   assistant: ChatMessage;
   memories: MemoryDocument[];
+  memory_decision?: ChatMemoryDecision | null;
 }
 
 export type WorkingMemoryKind =

@@ -59,6 +59,7 @@ impl DocumentStore {
             .query(
                 "DELETE conversation;
                  DELETE memory;
+                 DELETE explicit_memory;
                  DELETE habit_event;
                  DELETE reminder_event;
                  DELETE interaction_event;

@@ -8,10 +8,11 @@ use crate::debug;
 use crate::error::QPawResult;
 use crate::models::{
     AppSettings, AvatarKind, AvatarManifest, ChatMessage, InteractionEventKind, LayeredMemoryItem,
-    MemoryConsolidationReport, MemoryDocument, MemoryLayer, MemoryLayerFilter, MemoryQueryRequest,
-    MemoryQueryResponse, MemoryStats, ReminderEvent, ReminderFeedbackPayload, ReminderKind,
-    ReminderPayload, ReminderRuntimeStatus, SendChatResponse, WorkingMemoryItem,
-    PET_WINDOW_MAX_HEIGHT, PET_WINDOW_MAX_WIDTH, PET_WINDOW_MIN_HEIGHT, PET_WINDOW_MIN_WIDTH,
+    LlmConnectionTestResult, MemoryConsolidationReport, MemoryDocument, MemoryLayer,
+    MemoryLayerFilter, MemoryQueryRequest, MemoryQueryResponse, MemoryStats, ReminderEvent,
+    ReminderFeedbackPayload, ReminderKind, ReminderPayload, ReminderRuntimeStatus,
+    SendChatResponse, WorkingMemoryItem, PET_WINDOW_MAX_HEIGHT, PET_WINDOW_MAX_WIDTH,
+    PET_WINDOW_MIN_HEIGHT, PET_WINDOW_MIN_WIDTH,
 };
 use crate::AppState;
 
@@ -28,6 +29,18 @@ pub fn get_codex_dev_status() -> CodexDevStatus {
         "checking dev-only Codex CLI status",
     );
     codex_dev_status()
+}
+
+#[tauri::command]
+pub async fn test_llm_connection(
+    settings: AppSettings,
+    state: State<'_, AppState>,
+) -> QPawResult<LlmConnectionTestResult> {
+    debug::log(
+        "command:test_llm_connection",
+        format!("provider={:?}", settings.llm.provider),
+    );
+    Ok(state.llm.test_connection(&settings).await)
 }
 
 #[tauri::command]

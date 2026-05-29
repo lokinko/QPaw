@@ -1,4 +1,5 @@
 pub mod consolidator;
+pub mod explicit;
 pub mod prompts;
 pub mod retriever;
 pub mod store;
@@ -23,6 +24,7 @@ use crate::models::{
 use crate::storage::DocumentStore;
 
 use self::consolidator::MemoryConsolidator;
+use self::explicit::explicit_memory_from_message;
 use self::retriever::MemoryRetriever;
 use self::working::WorkingMemoryUpdater;
 
@@ -107,6 +109,21 @@ impl MemoryService {
             format!("message_len={}", message.chars().count()),
         );
         self.retriever.context_for_chat(message).await
+    }
+
+    pub async fn import_explicit_memory(
+        &self,
+        body: &str,
+        source: &str,
+        tags: Vec<String>,
+    ) -> QPawResult<crate::models::ExplicitMemoryItem> {
+        let item = explicit_memory_from_message(body, source, tags);
+        debug::log(
+            "memory:import_explicit_memory",
+            format!("id={} body_len={}", item.id, item.body.chars().count()),
+        );
+        self.store.upsert_explicit_memory(&item).await?;
+        Ok(item)
     }
 
     pub async fn list(&self, filter: MemoryLayerFilter) -> QPawResult<Vec<LayeredMemoryItem>> {

@@ -15,11 +15,23 @@ import {
 } from "../lib/tauri";
 import { DEFAULT_AVATAR_IMAGE_PATH, type AppSettings, type ReminderPayload } from "../lib/types";
 
+export function replyPreviewClassName(pinned: boolean, hoverDismissed: boolean) {
+  return [
+    "pet-reply-wrap",
+    pinned ? "is-pinned" : null,
+    hoverDismissed ? "is-hover-dismissed" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function PetWindow() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [reminder, setReminder] = useState<ReminderPayload | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [reply, setReply] = useState("我在旁边，不会打断你。");
+  const [replyPreviewPinned, setReplyPreviewPinned] = useState(false);
+  const [replyPreviewHoverDismissed, setReplyPreviewHoverDismissed] = useState(false);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -85,11 +97,17 @@ export function PetWindow() {
     const message = chatInput.trim();
     if (!message) return;
     setChatInput("");
+    setReplyPreviewPinned(false);
+    setReplyPreviewHoverDismissed(false);
     debugLog("pet-window:send:start", { messageLen: message.length });
     try {
       const response = await api.sendChatMessage(message);
       debugLog("pet-window:send:ok", { assistantLen: response.assistant.content.length });
-      setReply(response.assistant.content);
+      setReply(
+        response.memory_decision?.confirmation_prompt
+          ? `${response.assistant.content}\n${response.memory_decision.confirmation_prompt}`
+          : response.assistant.content,
+      );
     } catch (error) {
       debugError("pet-window:send:failed", error, { messageLen: message.length });
       setReply(`发送失败：${formatError(error)}`);
@@ -118,7 +136,37 @@ export function PetWindow() {
         )}
       </div>
       <section className="pet-chat-dock" data-tauri-drag-region>
-        <p data-tauri-drag-region>{reply}</p>
+        <div
+          className={replyPreviewClassName(replyPreviewPinned, replyPreviewHoverDismissed)}
+          onMouseLeave={() => setReplyPreviewHoverDismissed(false)}
+        >
+          <button
+            className="pet-chat-dock__reply"
+            type="button"
+            aria-label="查看完整回复"
+            aria-expanded={replyPreviewPinned}
+            onClick={() => {
+              setReplyPreviewHoverDismissed(false);
+              setReplyPreviewPinned((current) => !current);
+            }}
+          >
+            {reply}
+          </button>
+          <div className="pet-reply-preview" role="dialog" aria-label="完整回复预览">
+            <button
+              className="pet-reply-preview__close"
+              type="button"
+              aria-label="关闭完整回复预览"
+              onClick={() => {
+                setReplyPreviewPinned(false);
+                setReplyPreviewHoverDismissed(true);
+              }}
+            >
+              ×
+            </button>
+            <p>{reply}</p>
+          </div>
+        </div>
         <div className="pet-chat-dock__input">
           <input
             value={chatInput}

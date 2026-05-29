@@ -176,15 +176,26 @@ impl MemoryConsolidator {
             })
             .await?;
         let working = self.store.list_working_memory_for_date(date).await?;
+        let explicit = match self.store.list_active_explicit_memories().await {
+            Ok(explicit) => explicit,
+            Err(error) => {
+                debug::log(
+                    "memory:consolidator:run",
+                    format!("date={date} explicit_memory_error={error}"),
+                );
+                Vec::new()
+            }
+        };
         debug::log(
             "memory:consolidator:run",
             format!(
-                "date={date} existing_memory_count={} working_memory_count={}",
+                "date={date} existing_memory_count={} working_memory_count={} explicit_memory_count={}",
                 existing.len(),
-                working.len()
+                working.len(),
+                explicit.len()
             ),
         );
-        let user_prompt = consolidation_user_prompt(date, &events, &working, &existing);
+        let user_prompt = consolidation_user_prompt(date, &events, &working, &explicit, &existing);
         let output = match self
             .llm
             .complete_json(&settings, consolidation_system_prompt(), &user_prompt)

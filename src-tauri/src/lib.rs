@@ -5,8 +5,10 @@ mod commands;
 mod debug;
 mod error;
 mod idle;
+mod interruptibility;
 mod llm;
 mod memory;
+mod memory_decision;
 mod models;
 mod notification;
 mod reminders;
@@ -20,7 +22,7 @@ use commands::{
     get_reminder_status, get_settings, import_avatar, list_chat_history, list_memories,
     list_memory_items, list_working_memory, query_memory, record_task_event,
     run_memory_consolidation, save_pet_window_size, save_settings, send_chat_message,
-    set_reminder_feedback, trigger_test_reminder,
+    set_reminder_feedback, test_llm_connection, trigger_test_reminder,
 };
 use error::QPawError;
 use idle::SystemIdleProvider;
@@ -204,6 +206,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_settings,
             get_codex_dev_status,
+            test_llm_connection,
             save_settings,
             save_pet_window_size,
             import_avatar,

@@ -456,14 +456,81 @@ button {
   box-shadow: 0 16px 48px rgba(16, 33, 37, 0.12);
 }
 
-.pet-chat-dock p {
+.pet-reply-wrap {
+  position: relative;
+  min-width: 0;
   margin: 0 0 9px;
+}
+
+.pet-chat-dock__reply {
+  display: block;
+  width: 100%;
+  max-height: 58px;
+  padding: 0;
   color: #31474c;
   font-size: 12px;
   line-height: 1.4;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow: auto;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  cursor: text;
+  scrollbar-width: thin;
+}
+
+.pet-chat-dock__reply:focus-visible {
+  outline: 2px solid rgba(39, 113, 95, 0.32);
+  outline-offset: 3px;
+}
+
+.pet-reply-preview {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 35;
+  display: none;
+  max-height: min(220px, 50vh);
+  padding: 12px 34px 12px 12px;
+  color: #23363b;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(38, 67, 72, 0.16);
+  border-radius: 8px;
+  box-shadow: 0 18px 52px rgba(16, 33, 37, 0.18);
+  overflow: auto;
+}
+
+.pet-reply-wrap.is-pinned .pet-reply-preview,
+.pet-reply-wrap:not(.is-hover-dismissed):hover .pet-reply-preview,
+.pet-reply-wrap:not(.is-hover-dismissed):focus-within .pet-reply-preview {
+  display: block;
+}
+
+.pet-reply-preview p {
+  margin: 0;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.pet-reply-preview__close {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: #4a6268;
+  background: #edf4f2;
+  border: 1px solid #d4e1df;
+  border-radius: 999px;
+  box-shadow: none;
 }
 
 .pet-chat-dock__input {
